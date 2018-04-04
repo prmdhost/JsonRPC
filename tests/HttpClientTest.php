@@ -4,6 +4,10 @@ namespace JsonRPC;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
+function extension_loaded($extension) {
+    return HttpClientTest::$functions->extension_loaded($extension);
+}
+
 function fopen($url, $mode, $use_include_path, $context)
 {
     return HttpClientTest::$functions->fopen($url, $mode, $use_include_path, $context);
@@ -22,7 +26,7 @@ class HttpClientTest extends \PHPUnit_Framework_TestCase
     {
         self::$functions = $this
             ->getMockBuilder('stdClass')
-            ->setMethods(array('fopen', 'stream_context_create'))
+            ->setMethods(array('extension_loaded', 'fopen', 'stream_context_create'))
             ->getMock();
     }
 
@@ -72,6 +76,12 @@ class HttpClientTest extends \PHPUnit_Framework_TestCase
     {
         self::$functions
             ->expects($this->at(0))
+            ->method('extension_loaded')
+            ->with('curl')
+            ->will($this->returnValue(false));
+
+        self::$functions
+            ->expects($this->at(1))
             ->method('stream_context_create')
             ->with(array(
                 'http' => array(
@@ -97,7 +107,7 @@ class HttpClientTest extends \PHPUnit_Framework_TestCase
             ->will($this->returnValue('context'));
 
         self::$functions
-            ->expects($this->at(1))
+            ->expects($this->at(2))
             ->method('fopen')
             ->with('url', 'r', false, 'context')
             ->will($this->returnValue(false));
@@ -106,6 +116,20 @@ class HttpClientTest extends \PHPUnit_Framework_TestCase
         $httpClient->withBeforeRequestCallback(function(HttpClient $client, $payload) {
             $client->withHeaders(array('Content-Length: '.strlen($payload)));
         });
+
+        $this->setExpectedException('\JsonRPC\Exception\ConnectionFailureException');
+        $httpClient->execute('test');
+    }
+
+    public function testWithCurl()
+    {
+        self::$functions
+            ->expects($this->at(0))
+            ->method('extension_loaded')
+            ->with('curl')
+            ->will($this->returnValue(true));
+
+        $httpClient = new HttpClient('url');
 
         $this->setExpectedException('\JsonRPC\Exception\ConnectionFailureException');
         $httpClient->execute('test');

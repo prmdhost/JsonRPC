@@ -267,17 +267,60 @@ class HttpClient
             call_user_func_array($this->beforeRequest, array($this, $payload, $headers));
         }
 
-        $stream = fopen(trim($this->url), 'r', false, $this->buildContext($payload, $headers));
+        if ($this->isCurlLoaded()) {
+            $ch = curl_init();
+            $requestHeaders = $this->buildHeaders($headers);
+            $headers = array();
+            curl_setopt_array($ch, array(
+                CURLOPT_URL => trim($this->url),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => $this->timeout,
+                CURLOPT_MAXREDIRS => 2,
+                CURLOPT_SSL_VERIFYPEER => $this->verifySslCertificate,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => $requestHeaders,
+                CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$headers) {
+                    $length = strlen($header);
+                    $header = explode(':', $header, 2);
+                    if (count($header) < 2) {
+                        //invalid header
+                        return $length;
+                    }
 
-        if (! is_resource($stream)) {
-            throw new ConnectionFailureException('Unable to establish a connection');
+                    $name = strtolower(trim($header[0]));
+                    if (!array_key_exists($name, $headers)) {
+                        $headers[$name] = array(trim($headers[1]));
+                    } else {
+                        $headers[$name][] = trim($header[1]);
+                    }
+
+                    return $length;
+                }
+            ));
+            if ($this->sslLocalCert !== null) {
+                curl_setopt($ch, CURLOPT_CAINFO, $this->sslLocalCert);
+            }
+            $response = curl_exec($ch);
+            if ($response !== false) {
+                $response = json_decode($response, true);
+            } else {
+                throw new ConnectionFailureException('Unable to establish a connection');
+            }
+            curl_close($ch);
+        } else {
+            $stream = fopen(trim($this->url), 'r', false, $this->buildContext($payload, $headers));
+
+            if (! is_resource($stream)) {
+                throw new ConnectionFailureException('Unable to establish a connection');
+            }
+
+            $metadata = stream_get_meta_data($stream);
+            $headers = $metadata['wrapper_data'];
+            $response = json_decode(stream_get_contents($stream), true);
+
+            fclose($stream);
         }
-
-        $metadata = stream_get_meta_data($stream);
-        $headers = $metadata['wrapper_data'];
-        $response = json_decode(stream_get_contents($stream), true);
-        
-        fclose($stream);
 
         if ($this->debug) {
             error_log('==> Request: '.PHP_EOL.(is_string($payload) ? $payload : json_encode($payload, JSON_PRETTY_PRINT)));
@@ -301,21 +344,7 @@ class HttpClient
      */
     protected function buildContext($payload, array $headers = array())
     {
-        $headers = array_merge($this->headers, $headers);
-
-        if (! empty($this->username) && ! empty($this->password)) {
-            $headers[] = 'Authorization: Basic '.base64_encode($this->username.':'.$this->password);
-        }
-
-        if (! empty($this->cookies)){
-            $cookies = array();
-
-            foreach ($this->cookies as $key => $value) {
-                $cookies[] = $key.'='.$value;
-            }
-
-            $headers[] = 'Cookie: '.implode('; ', $cookies);
-        }
+        $headers = $this->buildHeaders($headers);
 
         $options = array(
             'http' => array(
@@ -391,5 +420,32 @@ class HttpClient
                 }
             }
         }
+    }
+
+    protected function isCurlLoaded() {
+        return extension_loaded('curl');
+    }
+
+    /**
+     * @param array $headers
+     * @return array
+     */
+    protected function buildHeaders(array $headers) {
+        $headers = array_merge($this->headers, $headers);
+
+        if (!empty($this->username) && !empty($this->password)) {
+            $headers[] = 'Authorization: Basic ' . base64_encode($this->username . ':' . $this->password);
+        }
+
+        if (!empty($this->cookies)) {
+            $cookies = array();
+
+            foreach ($this->cookies as $key => $value) {
+                $cookies[] = $key . '=' . $value;
+            }
+
+            $headers[] = 'Cookie: ' . implode('; ', $cookies);
+        }
+        return $headers;
     }
 }
