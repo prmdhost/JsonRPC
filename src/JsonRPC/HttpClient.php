@@ -281,21 +281,8 @@ class HttpClient
                 CURLOPT_POSTFIELDS => $payload,
                 CURLOPT_HTTPHEADER => $requestHeaders,
                 CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$headers) {
-                    $length = strlen($header);
-                    $header = explode(':', $header, 2);
-                    if (count($header) < 2) {
-                        //invalid header
-                        return $length;
-                    }
-
-                    $name = strtolower(trim($header[0]));
-                    if (!array_key_exists($name, $headers)) {
-                        $headers[$name] = array(trim($headers[1]));
-                    } else {
-                        $headers[$name][] = trim($header[1]);
-                    }
-
-                    return $length;
+                    $headers[] = $header;
+                    return strlen($header);
                 }
             ));
             if ($this->sslLocalCert !== null) {
