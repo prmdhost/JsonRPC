@@ -18,7 +18,7 @@ class HttpClient
     /**
      * URL of the server
      *
-     * @access private
+     * @access protected
      * @var string
      */
     protected $url;
@@ -26,7 +26,7 @@ class HttpClient
     /**
      * HTTP client timeout
      *
-     * @access private
+     * @access protected
      * @var integer
      */
     protected $timeout = 5;
@@ -34,7 +34,7 @@ class HttpClient
     /**
      * Default HTTP headers to send to the server
      *
-     * @access private
+     * @access protected
      * @var array
      */
     protected $headers = array(
@@ -47,7 +47,7 @@ class HttpClient
     /**
      * Username for authentication
      *
-     * @access private
+     * @access protected
      * @var string
      */
     protected $username;
@@ -55,7 +55,7 @@ class HttpClient
     /**
      * Password for authentication
      *
-     * @access private
+     * @access protected
      * @var string
      */
     protected $password;
@@ -63,7 +63,7 @@ class HttpClient
     /**
      * Enable debug output to the php error log
      *
-     * @access private
+     * @access protected
      * @var boolean
      */
     protected $debug = false;
@@ -71,7 +71,7 @@ class HttpClient
     /**
      * Cookies
      *
-     * @access private
+     * @access protected
      * @var array
      */
     protected $cookies = array();
@@ -79,7 +79,7 @@ class HttpClient
     /**
      * SSL certificates verification
      *
-     * @access private
+     * @access protected
      * @var boolean
      */
     protected $verifySslCertificate = true;
@@ -87,7 +87,7 @@ class HttpClient
     /**
      * SSL client certificate
      *
-     * @access private
+     * @access protected
      * @var string
      */
     protected $sslLocalCert;
@@ -95,7 +95,7 @@ class HttpClient
     /**
      * Callback called before the doing the request
      *
-     * @access private
+     * @access protected
      * @var Closure
      */
     protected $beforeRequest;
@@ -324,7 +324,7 @@ class HttpClient
     /**
      * Prepare stream context
      *
-     * @access private
+     * @access protected
      * @param  string   $payload
      * @param  string[] $headers
      * @return resource
@@ -359,7 +359,7 @@ class HttpClient
     /**
      * Parse cookies from response
      *
-     * @access private
+     * @access protected
      * @param  array $headers
      */
     protected function parseCookies(array $headers)
@@ -409,15 +409,26 @@ class HttpClient
         }
     }
 
-    protected function isCurlLoaded() {
+    /**
+     * Tests if the curl extension is loaded
+     *
+     * @access protected
+     * @return bool
+     */
+    protected function isCurlLoaded()
+    {
         return extension_loaded('curl');
     }
 
     /**
+     * Prepare Headers
+     *
+     * @access protected
      * @param array $headers
      * @return array
      */
-    protected function buildHeaders(array $headers) {
+    protected function buildHeaders(array $headers)
+    {
         $headers = array_merge($this->headers, $headers);
 
         if (!empty($this->username) && !empty($this->password)) {
